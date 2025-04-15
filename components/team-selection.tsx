@@ -26,27 +26,25 @@ export function TeamSelection({
   const [selectedTeam1, setSelectedTeam1] = useState<string | null>(null);
   const [selectedTeam2, setSelectedTeam2] = useState<string | null>(null);
 
-  // This would be populated with actual F1 team data
   const teams: Team[] = [
-    { id: "mercedes", name: "Mercedes", logo: "/logos/mercedes.png" },
-    { id: "ferrari", name: "Ferrari", logo: "/logos/ferrari.png" },
-    { id: "redbull", name: "Red Bull", logo: "/logos/redbull.png" },
-    { id: "mclaren", name: "McLaren", logo: "/logos/mclaren.png" },
-    { id: "alpine", name: "Alpine", logo: "/logos/alpine.png" },
+    { id: "mercedes", name: "Mercedes", logo: "/logos/f1/mercedes.png" },
+    { id: "ferrari", name: "Ferrari", logo: "/logos/f1/ferrari.png" },
+    { id: "redbull", name: "Red Bull", logo: "/logos/f1/redbull.png" },
+    { id: "mclaren", name: "McLaren", logo: "/logos/f1/mclaren.png" },
+    { id: "alpine", name: "Alpine", logo: "/logos/f1/alpine.png" },
     {
       id: "astonmartin",
       name: "Aston Martin",
-      logo: "/logos/aston-martin.png",
+      logo: "/logos/f1/astonmartin.png",
     },
-    { id: "alfaromeo", name: "Kick Sauber", logo: "/logos/alfa-romeo.png" },
-    { id: "haas", name: "Haas", logo: "/logos/haas.png" },
-    { id: "williams", name: "Williams", logo: "/logos/williams.png" },
+    { id: "alfaromeo", name: "Kick Sauber", logo: "/logos/f1/alfaromeo.png" },
+    { id: "haas", name: "Haas", logo: "/logos/f1/haas.png" },
+    { id: "williams", name: "Williams", logo: "/logos/f1/williams.png" },
     {
       id: "racingbulls",
       name: "Racing Bulls",
-      logo: "/logos/racingbulls.png",
+      logo: "/logos/f1/racingbulls.png",
     },
-    // Add more teams as needed
   ];
 
   const handleTeamSelect = (teamId: string, player: "player1" | "player2") => {

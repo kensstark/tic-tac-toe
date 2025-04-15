@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { WelcomeScreen } from "./welcome-screen";
 import { TeamSelection } from "./team-selection";
+import { NBATeamSelection } from "./nba-team-selection";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -17,7 +18,7 @@ const Confetti = dynamic(
   }
 );
 
-type GameMode = "normal" | "f1";
+type GameMode = "normal" | "f1" | "nba";
 type Player = "X" | "O";
 type CellValue = Player | null;
 
@@ -115,7 +116,7 @@ export function TicTacToe() {
     player2: string,
     mode: GameMode
   ) => {
-    if (mode === "f1") {
+    if (mode === "f1" || mode === "nba") {
       setShowTeamSelection(true);
       setGameState({
         board: Array(9).fill(null),
@@ -198,25 +199,39 @@ export function TicTacToe() {
   }
 
   if (showTeamSelection) {
-    return (
-      <TeamSelection
-        player1={gameState.player1}
-        player2={gameState.player2}
-        onConfirm={handleTeamSelection}
-      />
-    );
+    if (gameState.mode === "f1") {
+      return (
+        <TeamSelection
+          player1={gameState.player1}
+          player2={gameState.player2}
+          onConfirm={handleTeamSelection}
+        />
+      );
+    } else if (gameState.mode === "nba") {
+      return (
+        <NBATeamSelection
+          player1={gameState.player1}
+          player2={gameState.player2}
+          onConfirm={handleTeamSelection}
+        />
+      );
+    }
   }
 
   const renderCell = (index: number) => {
     const value = gameState.board[index];
     if (!value) return null;
 
-    if (gameState.mode === "f1") {
+    if (gameState.mode === "f1" || gameState.mode === "nba") {
       const team =
         value === "X" ? gameState.player1Team : gameState.player2Team;
+      const logoPath =
+        gameState.mode === "f1"
+          ? `/logos/${team}.png`
+          : `/logos/nba/${team}.png`;
       return (
         <Image
-          src={`/logos/${team}.png`}
+          src={logoPath}
           alt={value}
           width={80}
           height={80}

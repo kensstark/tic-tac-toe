@@ -7,14 +7,16 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+type GameMode = "normal" | "f1" | "nba";
+
 interface WelcomeScreenProps {
-  onStart: (player1: string, player2: string, mode: "normal" | "f1") => void;
+  onStart: (player1: string, player2: string, mode: GameMode) => void;
 }
 
 export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
   const [player1, setPlayer1] = useState("");
   const [player2, setPlayer2] = useState("");
-  const [mode, setMode] = useState<"normal" | "f1">("normal");
+  const [mode, setMode] = useState<GameMode>("normal");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +61,7 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
             <Label>Game Mode</Label>
             <RadioGroup
               value={mode}
-              onValueChange={(value) => setMode(value as "normal" | "f1")}
+              onValueChange={(value) => setMode(value as GameMode)}
               className="flex flex-col space-y-1"
             >
               <div className="flex items-center space-x-2">
@@ -69,6 +71,10 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="f1" id="f1" />
                 <Label htmlFor="f1">Formula 1 Mode</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="nba" id="nba" />
+                <Label htmlFor="nba">NBA Mode</Label>
               </div>
             </RadioGroup>
           </div>
