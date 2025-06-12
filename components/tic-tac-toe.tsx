@@ -31,6 +31,11 @@ interface GameState {
   mode: GameMode;
   player1Team?: string;
   player2Team?: string;
+  seriesScore?: {
+    player1Wins: number;
+    player2Wins: number;
+    currentGame: number;
+  };
 }
 
 // Square component represents a single cell in the game
@@ -81,6 +86,43 @@ function ResultPopup({ result }: { result: string }) {
   );
 }
 
+// Add SeriesScore component after ResultPopup
+function SeriesScore({ gameState }: { gameState: GameState }) {
+  if (gameState.mode !== "nba" || !gameState.seriesScore) return null;
+
+  return (
+    <div className="flex justify-between items-center mb-4 px-4">
+      <div className="flex items-center gap-2">
+        <Image
+          src={`/logos/nba/${gameState.player1Team}.png`}
+          alt={gameState.player1Team || ""}
+          width={40}
+          height={40}
+          className="w-10 h-10 object-contain"
+        />
+        <span className="text-lg font-bold">
+          {gameState.seriesScore.player1Wins}
+        </span>
+      </div>
+      <div className="text-sm text-gray-500">
+        Game {gameState.seriesScore.currentGame} of 7
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-lg font-bold">
+          {gameState.seriesScore.player2Wins}
+        </span>
+        <Image
+          src={`/logos/nba/${gameState.player2Team}.png`}
+          alt={gameState.player2Team || ""}
+          width={40}
+          height={40}
+          className="w-10 h-10 object-contain"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function TicTacToe() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [showTeamSelection, setShowTeamSelection] = useState(false);
@@ -125,6 +167,14 @@ export function TicTacToe() {
         player1,
         player2,
         mode,
+        seriesScore:
+          mode === "nba"
+            ? {
+                player1Wins: 0,
+                player2Wins: 0,
+                currentGame: 1,
+              }
+            : undefined,
       });
     } else {
       setGameState({
@@ -174,6 +224,33 @@ export function TicTacToe() {
     return squares.includes(null) ? null : "draw";
   };
 
+  // Add function to start next game in series
+  const startNextGame = (currentState: GameState) => {
+    if (currentState.mode === "nba" && currentState.seriesScore) {
+      const newSeriesScore = { ...currentState.seriesScore };
+
+      if (currentState.winner === "X") {
+        newSeriesScore.player1Wins += 1;
+      } else if (currentState.winner === "O") {
+        newSeriesScore.player2Wins += 1;
+      }
+
+      // Only increment game number if there's a winner (not a draw)
+      if (currentState.winner !== "draw") {
+        newSeriesScore.currentGame += 1;
+      }
+
+      // Start new game with updated series score
+      setGameState({
+        ...currentState,
+        board: Array(9).fill(null),
+        currentPlayer: "X",
+        winner: null,
+        seriesScore: newSeriesScore,
+      });
+    }
+  };
+
   const handleClick = (index: number) => {
     if (!gameState || gameState.winner || gameState.board[index]) return;
 
@@ -181,12 +258,25 @@ export function TicTacToe() {
     newBoard[index] = gameState.currentPlayer;
 
     const winner = calculateWinner(newBoard);
+
     setGameState({
       ...gameState,
       board: newBoard,
       currentPlayer: gameState.currentPlayer === "X" ? "O" : "X",
       winner,
     });
+
+    // If there's a winner and we're in NBA mode, start the next game after a short delay
+    if (winner && gameState.mode === "nba") {
+      setTimeout(() => {
+        startNextGame({
+          ...gameState,
+          board: newBoard,
+          currentPlayer: gameState.currentPlayer === "X" ? "O" : "X",
+          winner,
+        });
+      }, 1500); // 1.5 second delay to show the winner
+    }
   };
 
   const resetGame = () => {
@@ -227,7 +317,7 @@ export function TicTacToe() {
         value === "X" ? gameState.player1Team : gameState.player2Team;
       const logoPath =
         gameState.mode === "f1"
-          ? `/logos/${team}.png`
+          ? `/logos/f1/${team}.png`
           : `/logos/nba/${team}.png`;
       return (
         <Image
@@ -254,7 +344,11 @@ export function TicTacToe() {
                   gameState.winner === "X"
                     ? gameState.player1
                     : gameState.player2
-                } Wins!`
+                } Wins Game ${
+                  gameState.mode === "nba" && gameState.seriesScore
+                    ? gameState.seriesScore.currentGame
+                    : ""
+                }!`
             : `${
                 gameState.currentPlayer === "X"
                   ? gameState.player1
@@ -263,6 +357,7 @@ export function TicTacToe() {
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {gameState.mode === "nba" && <SeriesScore gameState={gameState} />}
         <div className="grid grid-cols-3 gap-2 aspect-square">
           {gameState.board.map((_, index) => (
             <button
@@ -276,8 +371,22 @@ export function TicTacToe() {
           ))}
         </div>
         <div className="mt-4 flex justify-center">
-          <Button onClick={resetGame} variant="outline">
-            New Game
+          <Button
+            onClick={resetGame}
+            variant="outline"
+            className={
+              gameState.mode === "nba" &&
+              gameState.seriesScore &&
+              gameState.seriesScore.currentGame > 7
+                ? "bg-green-500 text-white hover:bg-green-600"
+                : ""
+            }
+          >
+            {gameState.mode === "nba" &&
+            gameState.seriesScore &&
+            gameState.seriesScore.currentGame > 7
+              ? "New Series"
+              : "New Game"}
           </Button>
         </div>
       </CardContent>
