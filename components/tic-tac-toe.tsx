@@ -123,6 +123,65 @@ function SeriesScore({ gameState }: { gameState: GameState }) {
   );
 }
 
+// Add SeriesComplete component after SeriesScore
+function SeriesComplete({
+  gameState,
+  onRestartSeries,
+  onNewSeries,
+  onNewGame,
+}: {
+  gameState: GameState;
+  onRestartSeries: () => void;
+  onNewSeries: () => void;
+  onNewGame: () => void;
+}) {
+  const seriesWinner =
+    gameState.seriesScore?.player1Wins === 4
+      ? gameState.player1
+      : gameState.seriesScore?.player2Wins === 4
+      ? gameState.player2
+      : null;
+
+  return (
+    <motion.div
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.8, opacity: 0 }}
+      className="fixed inset-0 flex items-center justify-center z-50 bg-black/50"
+    >
+      <Card className="w-full max-w-md mx-4">
+        <CardHeader>
+          <CardTitle className="text-2xl text-center">
+            Series Complete!
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="text-center space-y-2">
+            <h3 className="text-xl font-semibold">
+              {seriesWinner} wins the series!
+            </h3>
+            <p className="text-gray-500">
+              {gameState.seriesScore?.player1Wins} -{" "}
+              {gameState.seriesScore?.player2Wins}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            <Button onClick={onRestartSeries} className="w-full">
+              Restart Series with Same Teams
+            </Button>
+            <Button onClick={onNewSeries} variant="outline" className="w-full">
+              New Series with Different Teams
+            </Button>
+            <Button onClick={onNewGame} variant="ghost" className="w-full">
+              New Game (Choose Mode)
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
 export function TicTacToe() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [showTeamSelection, setShowTeamSelection] = useState(false);
@@ -136,6 +195,7 @@ export function TicTacToe() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [resultMessage, setResultMessage] = useState("");
+  const [showSeriesComplete, setShowSeriesComplete] = useState(false);
 
   // Get window dimensions for confetti
   useEffect(() => {
@@ -224,7 +284,64 @@ export function TicTacToe() {
     return squares.includes(null) ? null : "draw";
   };
 
-  // Add function to start next game in series
+  // Add function to check if series is complete
+  const isSeriesComplete = (state: GameState) => {
+    return (
+      state.mode === "nba" &&
+      state.seriesScore &&
+      (state.seriesScore.player1Wins === 4 ||
+        state.seriesScore.player2Wins === 4)
+    );
+  };
+
+  // Add function to restart series with same teams
+  const handleRestartSeries = () => {
+    if (gameState) {
+      setGameState({
+        ...gameState,
+        board: Array(9).fill(null),
+        currentPlayer: "X",
+        winner: null,
+        seriesScore: {
+          player1Wins: 0,
+          player2Wins: 0,
+          currentGame: 1,
+        },
+      });
+      setShowSeriesComplete(false);
+      setShowConfetti(false);
+    }
+  };
+
+  // Add function to start new series
+  const handleNewSeries = () => {
+    if (gameState) {
+      setGameState({
+        ...gameState,
+        board: Array(9).fill(null),
+        currentPlayer: "X",
+        winner: null,
+        seriesScore: {
+          player1Wins: 0,
+          player2Wins: 0,
+          currentGame: 1,
+        },
+      });
+      setShowTeamSelection(true);
+      setShowSeriesComplete(false);
+      setShowConfetti(false);
+    }
+  };
+
+  // Add function to start new game
+  const handleNewGame = () => {
+    setGameState(null);
+    setShowTeamSelection(false);
+    setShowSeriesComplete(false);
+    setShowConfetti(false);
+  };
+
+  // Modify startNextGame to check for series completion
   const startNextGame = (currentState: GameState) => {
     if (currentState.mode === "nba" && currentState.seriesScore) {
       const newSeriesScore = { ...currentState.seriesScore };
@@ -238,6 +355,17 @@ export function TicTacToe() {
       // Only increment game number if there's a winner (not a draw)
       if (currentState.winner !== "draw") {
         newSeriesScore.currentGame += 1;
+      }
+
+      // Check if series is complete
+      if (
+        newSeriesScore.player1Wins === 4 ||
+        newSeriesScore.player2Wins === 4
+      ) {
+        setShowConfetti(true);
+        setShowSeriesComplete(true);
+        // Stop confetti after 5 seconds
+        setTimeout(() => setShowConfetti(false), 5000);
       }
 
       // Start new game with updated series score
@@ -334,62 +462,80 @@ export function TicTacToe() {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle className="text-2xl text-center">
-          {gameState.winner
-            ? gameState.winner === "draw"
-              ? "It's a Draw!"
+    <>
+      {showConfetti && (
+        <Confetti
+          width={windowDimensions.width}
+          height={windowDimensions.height}
+          recycle={false}
+          numberOfPieces={500}
+        />
+      )}
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl text-center">
+            {gameState.winner
+              ? gameState.winner === "draw"
+                ? "It's a Draw!"
+                : `${
+                    gameState.winner === "X"
+                      ? gameState.player1
+                      : gameState.player2
+                  } Wins Game ${
+                    gameState.mode === "nba" && gameState.seriesScore
+                      ? gameState.seriesScore.currentGame
+                      : ""
+                  }!`
               : `${
-                  gameState.winner === "X"
+                  gameState.currentPlayer === "X"
                     ? gameState.player1
                     : gameState.player2
-                } Wins Game ${
-                  gameState.mode === "nba" && gameState.seriesScore
-                    ? gameState.seriesScore.currentGame
-                    : ""
-                }!`
-            : `${
-                gameState.currentPlayer === "X"
-                  ? gameState.player1
-                  : gameState.player2
-              }'s Turn`}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {gameState.mode === "nba" && <SeriesScore gameState={gameState} />}
-        <div className="grid grid-cols-3 gap-2 aspect-square">
-          {gameState.board.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => handleClick(index)}
-              className="aspect-square border-2 border-gray-200 rounded-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={gameState.winner !== null}
+                }'s Turn`}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {gameState.mode === "nba" && <SeriesScore gameState={gameState} />}
+          <div className="grid grid-cols-3 gap-2 aspect-square">
+            {gameState.board.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => handleClick(index)}
+                className="aspect-square border-2 border-gray-200 rounded-lg flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={gameState.winner !== null}
+              >
+                {renderCell(index)}
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 flex justify-center">
+            <Button
+              onClick={resetGame}
+              variant="outline"
+              className={
+                gameState.mode === "nba" &&
+                gameState.seriesScore &&
+                gameState.seriesScore.currentGame > 7
+                  ? "bg-green-500 text-white hover:bg-green-600"
+                  : ""
+              }
             >
-              {renderCell(index)}
-            </button>
-          ))}
-        </div>
-        <div className="mt-4 flex justify-center">
-          <Button
-            onClick={resetGame}
-            variant="outline"
-            className={
-              gameState.mode === "nba" &&
+              {gameState.mode === "nba" &&
               gameState.seriesScore &&
               gameState.seriesScore.currentGame > 7
-                ? "bg-green-500 text-white hover:bg-green-600"
-                : ""
-            }
-          >
-            {gameState.mode === "nba" &&
-            gameState.seriesScore &&
-            gameState.seriesScore.currentGame > 7
-              ? "New Series"
-              : "New Game"}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+                ? "New Series"
+                : "New Game"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      {showSeriesComplete && gameState && (
+        <SeriesComplete
+          gameState={gameState}
+          onRestartSeries={handleRestartSeries}
+          onNewSeries={handleNewSeries}
+          onNewGame={handleNewGame}
+        />
+      )}
+    </>
   );
 }
