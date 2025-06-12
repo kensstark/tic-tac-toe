@@ -26,11 +26,23 @@ interface GameState {
   board: CellValue[];
   currentPlayer: Player;
   winner: Player | "draw" | null;
-  player1: string;
-  player2: string;
+  players: string[];
+  playerTeams: string[];
   mode: GameMode;
-  player1Team?: string;
-  player2Team?: string;
+  currentGameIndex?: number;
+  tournamentState?: {
+    matches: Array<{
+      player1: number;
+      player2: number;
+      player1Wins: number;
+      player2Wins: number;
+      completed: boolean;
+    }>;
+    currentMatchIndex: number;
+    playerWins: number[];
+    isTiebreaker: boolean;
+    tiebreakerPlayers: number[];
+  };
   seriesScore?: {
     player1Wins: number;
     player2Wins: number;
@@ -94,8 +106,8 @@ function SeriesScore({ gameState }: { gameState: GameState }) {
     <div className="flex justify-between items-center mb-4 px-4">
       <div className="flex items-center gap-2">
         <Image
-          src={`/logos/nba/${gameState.player1Team}.png`}
-          alt={gameState.player1Team || ""}
+          src={`/logos/nba/${gameState.playerTeams[0]}.png`}
+          alt={gameState.playerTeams[0] || ""}
           width={40}
           height={40}
           className="w-10 h-10 object-contain"
@@ -104,16 +116,14 @@ function SeriesScore({ gameState }: { gameState: GameState }) {
           {gameState.seriesScore.player1Wins}
         </span>
       </div>
-      <div className="text-sm text-gray-500">
-        Game {gameState.seriesScore.currentGame} of 7
-      </div>
+      <div className="text-sm text-gray-500">vs</div>
       <div className="flex items-center gap-2">
         <span className="text-lg font-bold">
           {gameState.seriesScore.player2Wins}
         </span>
         <Image
-          src={`/logos/nba/${gameState.player2Team}.png`}
-          alt={gameState.player2Team || ""}
+          src={`/logos/nba/${gameState.playerTeams[1]}.png`}
+          alt={gameState.playerTeams[1] || ""}
           width={40}
           height={40}
           className="w-10 h-10 object-contain"
@@ -136,10 +146,18 @@ function SeriesComplete({
   onNewGame: () => void;
 }) {
   const seriesWinner =
-    gameState.seriesScore?.player1Wins === 4
-      ? gameState.player1
-      : gameState.seriesScore?.player2Wins === 4
-      ? gameState.player2
+    gameState.mode === "nba" && gameState.seriesScore
+      ? gameState.seriesScore.player1Wins === 4
+        ? gameState.players[0]
+        : gameState.seriesScore.player2Wins === 4
+        ? gameState.players[1]
+        : null
+      : gameState.mode === "f1" && gameState.tournamentState
+      ? gameState.players[
+          gameState.tournamentState.playerWins.indexOf(
+            Math.max(...gameState.tournamentState.playerWins)
+          )
+        ]
       : null;
 
   return (
@@ -160,10 +178,30 @@ function SeriesComplete({
             <h3 className="text-xl font-semibold">
               {seriesWinner} wins the series!
             </h3>
-            <p className="text-gray-500">
-              {gameState.seriesScore?.player1Wins} -{" "}
-              {gameState.seriesScore?.player2Wins}
-            </p>
+            {gameState.mode === "nba" && gameState.seriesScore && (
+              <p className="text-gray-500">
+                {gameState.seriesScore.player1Wins} -{" "}
+                {gameState.seriesScore.player2Wins}
+              </p>
+            )}
+            {gameState.mode === "f1" && gameState.tournamentState && (
+              <div className="space-y-2">
+                <p className="text-gray-500">Final Standings:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {gameState.players.map((player, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between"
+                    >
+                      <span>{player}</span>
+                      <span className="font-bold">
+                        {gameState.tournamentState?.playerWins[index]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-1 gap-3">
             <Button onClick={onRestartSeries} className="w-full">
@@ -213,47 +251,82 @@ export function TicTacToe() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handleStartGame = (
-    player1: string,
-    player2: string,
-    mode: GameMode
-  ) => {
+  const handleStartGame = (players: string[], mode: GameMode) => {
     if (mode === "f1" || mode === "nba") {
       setShowTeamSelection(true);
       setGameState({
         board: Array(9).fill(null),
         currentPlayer: "X",
         winner: null,
-        player1,
-        player2,
+        players,
+        playerTeams: [],
         mode,
-        seriesScore:
-          mode === "nba"
-            ? {
-                player1Wins: 0,
-                player2Wins: 0,
-                currentGame: 1,
-              }
-            : undefined,
+        ...(mode === "f1" && {
+          tournamentState: {
+            matches: generateMatches(players.length),
+            currentMatchIndex: 0,
+            playerWins: Array(players.length).fill(0),
+            isTiebreaker: false,
+            tiebreakerPlayers: [],
+          },
+        }),
       });
     } else {
       setGameState({
         board: Array(9).fill(null),
         currentPlayer: "X",
         winner: null,
-        player1,
-        player2,
+        players: [players[0], players[1]],
+        playerTeams: [],
         mode,
       });
     }
   };
 
-  const handleTeamSelection = (player1Team: string, player2Team: string) => {
+  const generateMatches = (numPlayers: number) => {
+    const matches: Array<{
+      player1: number;
+      player2: number;
+      player1Wins: number;
+      player2Wins: number;
+      completed: boolean;
+    }> = [];
+
+    // Generate all possible pairs of players
+    for (let i = 0; i < numPlayers; i++) {
+      for (let j = i + 1; j < numPlayers; j++) {
+        // Add two matches for each pair (home and away)
+        matches.push({
+          player1: i,
+          player2: j,
+          player1Wins: 0,
+          player2Wins: 0,
+          completed: false,
+        });
+        matches.push({
+          player1: j,
+          player2: i,
+          player1Wins: 0,
+          player2Wins: 0,
+          completed: false,
+        });
+      }
+    }
+
+    // Shuffle the matches
+    for (let i = matches.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [matches[i], matches[j]] = [matches[j], matches[i]];
+    }
+
+    return matches;
+  };
+
+  const handleTeamSelection = (playerTeams: string[]) => {
     if (gameState) {
       setGameState({
         ...gameState,
-        player1Team,
-        player2Team,
+        playerTeams,
       });
       setShowTeamSelection(false);
     }
@@ -343,7 +416,59 @@ export function TicTacToe() {
 
   // Modify startNextGame to check for series completion
   const startNextGame = (currentState: GameState) => {
-    if (currentState.mode === "nba" && currentState.seriesScore) {
+    if (currentState.mode === "f1" && currentState.tournamentState) {
+      const { tournamentState } = currentState;
+      const currentMatch =
+        tournamentState.matches[tournamentState.currentMatchIndex];
+
+      if (currentState.winner === "X") {
+        currentMatch.player1Wins++;
+        tournamentState.playerWins[currentMatch.player1]++;
+      } else if (currentState.winner === "O") {
+        currentMatch.player2Wins++;
+        tournamentState.playerWins[currentMatch.player2]++;
+      }
+
+      // Check if current match is complete (best of 3)
+      if (currentMatch.player1Wins === 2 || currentMatch.player2Wins === 2) {
+        currentMatch.completed = true;
+        tournamentState.currentMatchIndex++;
+
+        // Check if tournament is complete
+        if (
+          tournamentState.currentMatchIndex >= tournamentState.matches.length
+        ) {
+          // Find players with most wins
+          const maxWins = Math.max(...tournamentState.playerWins);
+          const winners = tournamentState.playerWins
+            .map((wins, index) => ({ wins, index }))
+            .filter(({ wins }) => wins === maxWins)
+            .map(({ index }) => index);
+
+          if (winners.length === 1) {
+            // We have a winner
+            setShowConfetti(true);
+            setShowSeriesComplete(true);
+            setTimeout(() => setShowConfetti(false), 5000);
+          } else {
+            // We have a tie, start tiebreaker
+            tournamentState.isTiebreaker = true;
+            tournamentState.tiebreakerPlayers = winners;
+            tournamentState.matches = generateTiebreakerMatches(winners);
+            tournamentState.currentMatchIndex = 0;
+          }
+        }
+      }
+
+      // Start new game
+      setGameState({
+        ...currentState,
+        board: Array(9).fill(null),
+        currentPlayer: "X",
+        winner: null,
+        tournamentState,
+      });
+    } else if (currentState.mode === "nba" && currentState.seriesScore) {
       const newSeriesScore = { ...currentState.seriesScore };
 
       if (currentState.winner === "X") {
@@ -379,6 +504,31 @@ export function TicTacToe() {
     }
   };
 
+  const generateTiebreakerMatches = (players: number[]) => {
+    const matches: Array<{
+      player1: number;
+      player2: number;
+      player1Wins: number;
+      player2Wins: number;
+      completed: boolean;
+    }> = [];
+
+    // Generate matches between tied players
+    for (let i = 0; i < players.length; i++) {
+      for (let j = i + 1; j < players.length; j++) {
+        matches.push({
+          player1: players[i],
+          player2: players[j],
+          player1Wins: 0,
+          player2Wins: 0,
+          completed: false,
+        });
+      }
+    }
+
+    return matches;
+  };
+
   const handleClick = (index: number) => {
     if (!gameState || gameState.winner || gameState.board[index]) return;
 
@@ -394,8 +544,8 @@ export function TicTacToe() {
       winner,
     });
 
-    // If there's a winner and we're in NBA mode, start the next game after a short delay
-    if (winner && gameState.mode === "nba") {
+    // If there's a winner and we're in F1 mode, start the next game after a short delay
+    if (winner && gameState.mode === "f1") {
       setTimeout(() => {
         startNextGame({
           ...gameState,
@@ -420,17 +570,18 @@ export function TicTacToe() {
     if (gameState.mode === "f1") {
       return (
         <TeamSelection
-          player1={gameState.player1}
-          player2={gameState.player2}
+          players={gameState.players}
           onConfirm={handleTeamSelection}
         />
       );
     } else if (gameState.mode === "nba") {
       return (
         <NBATeamSelection
-          player1={gameState.player1}
-          player2={gameState.player2}
-          onConfirm={handleTeamSelection}
+          player1={gameState.players[0]}
+          player2={gameState.players[1]}
+          onConfirm={(player1Team, player2Team) =>
+            handleTeamSelection([player1Team, player2Team])
+          }
         />
       );
     }
@@ -441,8 +592,19 @@ export function TicTacToe() {
     if (!value) return null;
 
     if (gameState.mode === "f1" || gameState.mode === "nba") {
-      const team =
-        value === "X" ? gameState.player1Team : gameState.player2Team;
+      const teamIndex =
+        value === "X"
+          ? gameState.mode === "f1" && gameState.tournamentState
+            ? gameState.tournamentState.matches[
+                gameState.tournamentState.currentMatchIndex
+              ].player1
+            : 0
+          : gameState.mode === "f1" && gameState.tournamentState
+          ? gameState.tournamentState.matches[
+              gameState.tournamentState.currentMatchIndex
+            ].player2
+          : 1;
+      const team = gameState.playerTeams[teamIndex];
       const logoPath =
         gameState.mode === "f1"
           ? `/logos/f1/${team}.png`
@@ -461,6 +623,28 @@ export function TicTacToe() {
     return <span className="text-4xl font-bold">{value}</span>;
   };
 
+  const getCurrentPlayers = () => {
+    if (!gameState) return { player1: "", player2: "" };
+
+    if (gameState.mode === "f1" && gameState.tournamentState) {
+      const currentMatch =
+        gameState.tournamentState.matches[
+          gameState.tournamentState.currentMatchIndex
+        ];
+      return {
+        player1: gameState.players[currentMatch.player1],
+        player2: gameState.players[currentMatch.player2],
+      };
+    }
+
+    return {
+      player1: gameState.players[0],
+      player2: gameState.players[1],
+    };
+  };
+
+  const { player1, player2 } = getCurrentPlayers();
+
   return (
     <>
       {showConfetti && (
@@ -477,24 +661,75 @@ export function TicTacToe() {
             {gameState.winner
               ? gameState.winner === "draw"
                 ? "It's a Draw!"
-                : `${
-                    gameState.winner === "X"
-                      ? gameState.player1
-                      : gameState.player2
-                  } Wins Game ${
-                    gameState.mode === "nba" && gameState.seriesScore
-                      ? gameState.seriesScore.currentGame
-                      : ""
-                  }!`
-              : `${
-                  gameState.currentPlayer === "X"
-                    ? gameState.player1
-                    : gameState.player2
-                }'s Turn`}
+                : `${gameState.winner === "X" ? player1 : player2} Wins!`
+              : `${gameState.currentPlayer === "X" ? player1 : player2}'s Turn`}
           </CardTitle>
+          {gameState.mode === "f1" && gameState.tournamentState && (
+            <div className="text-sm text-center text-gray-500">
+              {gameState.tournamentState.isTiebreaker
+                ? "Tiebreaker Match"
+                : `Match ${
+                    gameState.tournamentState.currentMatchIndex + 1
+                  } of ${gameState.tournamentState.matches.length}`}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
-          {gameState.mode === "nba" && <SeriesScore gameState={gameState} />}
+          {gameState.mode === "f1" && gameState.tournamentState && (
+            <div className="mb-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Image
+                    src={`/logos/f1/${
+                      gameState.playerTeams[
+                        gameState.tournamentState.matches[
+                          gameState.tournamentState.currentMatchIndex
+                        ].player1
+                      ]
+                    }.png`}
+                    alt={player1}
+                    width={40}
+                    height={40}
+                    className="w-10 h-10 object-contain"
+                  />
+                  <span className="text-lg font-bold">
+                    {
+                      gameState.tournamentState.playerWins[
+                        gameState.tournamentState.matches[
+                          gameState.tournamentState.currentMatchIndex
+                        ].player1
+                      ]
+                    }
+                  </span>
+                </div>
+                <div className="text-sm text-gray-500">vs</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold">
+                    {
+                      gameState.tournamentState.playerWins[
+                        gameState.tournamentState.matches[
+                          gameState.tournamentState.currentMatchIndex
+                        ].player2
+                      ]
+                    }
+                  </span>
+                  <Image
+                    src={`/logos/f1/${
+                      gameState.playerTeams[
+                        gameState.tournamentState.matches[
+                          gameState.tournamentState.currentMatchIndex
+                        ].player2
+                      ]
+                    }.png`}
+                    alt={player2}
+                    width={40}
+                    height={40}
+                    className="w-10 h-10 object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-2 aspect-square">
             {gameState.board.map((_, index) => (
               <button

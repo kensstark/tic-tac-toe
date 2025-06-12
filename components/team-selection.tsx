@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,18 +13,14 @@ interface Team {
 }
 
 interface TeamSelectionProps {
-  player1: string;
-  player2: string;
-  onConfirm: (player1Team: string, player2Team: string) => void;
+  players: string[];
+  onConfirm: (playerTeams: string[]) => void;
 }
 
-export function TeamSelection({
-  player1,
-  player2,
-  onConfirm,
-}: TeamSelectionProps) {
-  const [selectedTeam1, setSelectedTeam1] = useState<string | null>(null);
-  const [selectedTeam2, setSelectedTeam2] = useState<string | null>(null);
+export function TeamSelection({ players, onConfirm }: TeamSelectionProps) {
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+  const [playerOrder, setPlayerOrder] = useState<number[]>([]);
 
   const teams: Team[] = [
     { id: "mercedes", name: "Mercedes", logo: "/logos/f1/mercedes.png" },
@@ -47,19 +43,35 @@ export function TeamSelection({
     },
   ];
 
-  const handleTeamSelect = (teamId: string, player: "player1" | "player2") => {
-    if (player === "player1") {
-      setSelectedTeam1(teamId);
+  // Initialize player order randomly
+  useEffect(() => {
+    const order = Array.from({ length: players.length }, (_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    setPlayerOrder(order);
+  }, [players.length]);
+
+  const handleTeamSelect = (teamId: string) => {
+    if (selectedTeams.includes(teamId)) return;
+
+    const newSelectedTeams = [...selectedTeams, teamId];
+    setSelectedTeams(newSelectedTeams);
+
+    if (currentPlayerIndex < players.length - 1) {
+      setCurrentPlayerIndex(currentPlayerIndex + 1);
     } else {
-      setSelectedTeam2(teamId);
+      // All players have selected teams
+      const finalTeams = new Array(players.length).fill("");
+      playerOrder.forEach((playerIndex, selectionIndex) => {
+        finalTeams[playerIndex] = newSelectedTeams[selectionIndex];
+      });
+      onConfirm(finalTeams);
     }
   };
 
-  const handleConfirm = () => {
-    if (selectedTeam1 && selectedTeam2) {
-      onConfirm(selectedTeam1, selectedTeam2);
-    }
-  };
+  const currentPlayer = players[playerOrder[currentPlayerIndex]];
 
   return (
     <Card className="w-full max-w-2xl">
@@ -69,74 +81,41 @@ export function TeamSelection({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">{player1}'s Team</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {teams.map((team) => (
-                <button
-                  key={team.id}
-                  onClick={() => handleTeamSelect(team.id, "player1")}
-                  className={cn(
-                    "p-4 border rounded-lg transition-all",
-                    selectedTeam1 === team.id
-                      ? "border-primary bg-primary/10"
-                      : "border-gray-200 hover:border-primary",
-                    selectedTeam2 === team.id && "opacity-50 cursor-not-allowed"
-                  )}
-                  disabled={selectedTeam2 === team.id}
-                >
-                  <Image
-                    src={team.logo}
-                    alt={team.name}
-                    width={100}
-                    height={100}
-                    className="w-full h-auto"
-                  />
-                  <p className="mt-2 text-center">{team.name}</p>
-                </button>
-              ))}
-            </div>
+        <div className="space-y-6">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold">
+              {currentPlayer}'s Turn to Select Team
+            </h3>
+            <p className="text-sm text-gray-500">
+              {currentPlayerIndex + 1} of {players.length} players
+            </p>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">{player2}'s Team</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {teams.map((team) => (
-                <button
-                  key={team.id}
-                  onClick={() => handleTeamSelect(team.id, "player2")}
-                  className={cn(
-                    "p-4 border rounded-lg transition-all",
-                    selectedTeam2 === team.id
-                      ? "border-primary bg-primary/10"
-                      : "border-gray-200 hover:border-primary",
-                    selectedTeam1 === team.id && "opacity-50 cursor-not-allowed"
-                  )}
-                  disabled={selectedTeam1 === team.id}
-                >
-                  <Image
-                    src={team.logo}
-                    alt={team.name}
-                    width={100}
-                    height={100}
-                    className="w-full h-auto"
-                  />
-                  <p className="mt-2 text-center">{team.name}</p>
-                </button>
-              ))}
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {teams.map((team) => (
+              <button
+                key={team.id}
+                onClick={() => handleTeamSelect(team.id)}
+                className={cn(
+                  "p-4 border rounded-lg transition-all",
+                  selectedTeams.includes(team.id)
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:border-primary hover:bg-primary/5",
+                  "flex flex-col items-center"
+                )}
+                disabled={selectedTeams.includes(team.id)}
+              >
+                <Image
+                  src={team.logo}
+                  alt={team.name}
+                  width={100}
+                  height={100}
+                  className="w-full h-auto"
+                />
+                <p className="mt-2 text-center">{team.name}</p>
+              </button>
+            ))}
           </div>
-        </div>
-
-        <div className="mt-8 flex justify-center">
-          <Button
-            onClick={handleConfirm}
-            disabled={!selectedTeam1 || !selectedTeam2}
-            className="w-full max-w-xs"
-          >
-            Confirm Selection
-          </Button>
         </div>
       </CardContent>
     </Card>
