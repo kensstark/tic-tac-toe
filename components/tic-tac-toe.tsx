@@ -373,6 +373,7 @@ export function TicTacToe() {
           )}
         </CardHeader>
         <CardContent>
+          {gameState.mode === "nba" && <SeriesScore gameState={gameState} />}
           {gameState.mode === "f1" && gameState.tournamentState && (
             <div className="mb-4">
               <div className="flex justify-between items-center">
