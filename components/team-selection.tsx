@@ -31,9 +31,9 @@ export function TeamSelection({ players, onConfirm }: TeamSelectionProps) {
     {
       id: "astonmartin",
       name: "Aston Martin",
-      logo: "/logos/f1/astonmartin.png",
+      logo: "/logos/f1/aston-martin.png",
     },
-    { id: "alfaromeo", name: "Kick Sauber", logo: "/logos/f1/alfaromeo.png" },
+    { id: "alfaromeo", name: "Kick Sauber", logo: "/logos/f1/alfa-romeo.png" },
     { id: "haas", name: "Haas", logo: "/logos/f1/haas.png" },
     { id: "williams", name: "Williams", logo: "/logos/f1/williams.png" },
     {
